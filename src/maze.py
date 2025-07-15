@@ -47,8 +47,8 @@ class Maze:
         if walls is None:
             # Create default walls (only boundary walls)
             # Note: HEIGHT and WIDTH are used from the main section - this may cause issues
-            walls_vertical = np.zeros(shape=(HEIGHT, WIDTH+1))
-            walls_horizontal = np.zeros(shape=(HEIGHT+1, WIDTH))
+            walls_vertical = np.zeros(shape=(self.height, self.width+1))
+            walls_horizontal = np.zeros(shape=(self.height+1, self.width))
             
             # Set boundary walls
             walls_vertical[[0, -1], :] = 1  # Left and right boundaries
@@ -57,6 +57,7 @@ class Maze:
             self.walls = [walls_vertical, walls_horizontal]
 
         self.agent_pos = start_position
+        self.step_numbers = 0
             
         # Validate wall dimensions
         if not (self.walls[0].shape[0] == self.grid.shape[0] and 
@@ -196,23 +197,22 @@ class Maze:
             case 'up':
                 coord_verif = (self.agent_pos[0],self.agent_pos[1])
                 new_coord = (self.agent_pos[0]-1, self.agent_pos[1])
-
             case 'down':
                 coord_verif =(self.agent_pos[0]+1,self.agent_pos[1])
-                new_coord = (self.agent_pos[0]+1, self.agent_pos[0])
-                                
+                new_coord = (self.agent_pos[0]+1, self.agent_pos[1])               
             case 'left':
                 coord_verif =(self.agent_pos[0],self.agent_pos[1])
                 new_coord = (self.agent_pos[0], self.agent_pos[1]-1)
             case 'right':
                 coord_verif =(self.agent_pos[0],self.agent_pos[1]+1)
-                new_coord = (self.agent_pos[0]+1, self.agent_pos[1]+1)
+                new_coord = (self.agent_pos[0], self.agent_pos[1]+1)
         
         i = 1 if action in ['up', 'down'] else 0
 
         if self.walls[i][coord_verif] == 1:
             return None, None, done
         else:
+            self.step_numbers += 1
             self.agent_pos = new_coord
             next_state = self.agent_pos
             if self.grid[self.agent_pos] == config.GOAL_REWARD:
@@ -224,11 +224,90 @@ class Maze:
 
 
 
+class Test_maze(Maze):
+    def __init__(self):
+        width = 8
+        height = 5
+        # Create wall arrays
+        walls_vertical = np.zeros(shape=(height, width+1))
+        walls_horizontal = np.zeros(shape=(height+1, width))
+        
+        # Set boundary walls
+        walls_vertical[:, [0, -1]] = 1  # Left and right boundaries
+        walls_horizontal[[0, -1], :] = 1  # Top and bottom boundaries
+
+        # Add some internal walls for demonstration
+        walls_vertical[[0, 1], 4] = 1  # Vertical wall at column 4, rows 0-1
+        walls_vertical[[2, 3], 5] = 1  # Vertical wall at column 5, rows 2-3
+        walls_vertical[2, 2] = 1       # Vertical wall at column 2, row 2
+        walls_vertical[[1, 2], 6] = 1  # Vertical wall at column 6, rows 1-2
+
+        # Add horizontal walls
+        walls_horizontal[1, 2] = 1        # Horizontal wall at row 1, column 2
+        walls_horizontal[3, [2, 3]] = 1   # Horizontal wall at row 3, columns 2-3
+        walls_horizontal[1, 6] = 1        # Horizontal wall at row 1, column 6
+
+        # Combine walls into the expected format
+        walls = [walls_vertical, walls_horizontal]
+
+        # Create maze instance
+        super().__init__(width=width, 
+                        height=height, 
+                        walls=walls, 
+                        cell_size=100,
+                        start_position=(0,0))
+        
+    def reset(self):
+        self.__init__()
+        
+class Test_maze_little(Maze):
+    def __init__(self):
+        self.width = 4
+        self.height = 3
+        # Create wall arrays
+        walls_vertical = np.zeros(shape=(self.height, self.width+1))
+        walls_horizontal = np.zeros(shape=(self.height+1, self.width))
+        
+        # Set boundary walls
+        walls_vertical[:, [0, -1]] = 1  # Left and right boundaries
+        walls_horizontal[[0, -1], :] = 1  # Top and bottom boundaries
+
+        # Add some internal walls for demonstration
+        walls_vertical[0, 1] = 1  
+        walls_vertical[1, 2] = 1  
+        walls_vertical[2, 3] = 1       
+
+
+        # Add horizontal walls
+        walls_horizontal[1, 2] = 1    
+    
+        self.grid = np.ones(shape=(self.height, self.width), dtype=int) * config.TIME_PENALTY
+        self.grid[self.height-1, self.width-1] = config.GOAL_REWARD
+        # Store cell size for rendering
+        self.cell_size = 100
+        
+        # Combine walls into the expected format
+        self.walls = [walls_vertical, walls_horizontal]
+        
+        self.agent_pos = (0, 0)
+        self.step_numbers = 0
+            
+        # Validate wall dimensions
+        if not (self.walls[0].shape[0] == self.grid.shape[0] and 
+                self.walls[0].shape[1] == self.grid.shape[1]+1 and
+                self.walls[1].shape[0] == self.grid.shape[0]+1 and 
+                self.walls[1].shape[1] == self.grid.shape[1]):
+            raise ValueError(f"Wall matrix dimensions: expected [{self.grid.shape[0]}x{self.grid.shape[1]+1}, {self.grid.shape[0]+1}x{self.grid.shape[1]}], got [{self.walls[0].shape},{self.walls[1].shape}]")
+
+        
+    def reset(self):
+        self.__init__()
+
 
 if __name__ == '__main__':
     # Example usage and testing
-    WIDTH = 8
-    HEIGHT = 4
+    WIDTH = 4
+    HEIGHT = 3
     
     # Create wall arrays
     walls_vertical = np.zeros(shape=(HEIGHT, WIDTH+1))
@@ -239,15 +318,14 @@ if __name__ == '__main__':
     walls_horizontal[[0, -1], :] = 1  # Top and bottom boundaries
 
     # Add some internal walls for demonstration
-    walls_vertical[[0, 1], 4] = 1  # Vertical wall at column 4, rows 0-1
-    walls_vertical[[2, 3], 5] = 1  # Vertical wall at column 5, rows 2-3
-    walls_vertical[2, 2] = 1       # Vertical wall at column 2, row 2
-    walls_vertical[[1, 2], 6] = 1  # Vertical wall at column 6, rows 1-2
+    walls_vertical[0, 1] = 1  
+    walls_vertical[1, 2] = 1  
+    walls_vertical[1, 3] = 1       
+
 
     # Add horizontal walls
-    walls_horizontal[1, 2] = 1        # Horizontal wall at row 1, column 2
-    walls_horizontal[3, [2, 3]] = 1   # Horizontal wall at row 3, columns 2-3
-    walls_horizontal[1, 6] = 1        # Horizontal wall at row 1, column 6
+    walls_horizontal[1, 3] = 1    
+ 
 
     # Combine walls into the expected format
     walls = [walls_vertical, walls_horizontal]
