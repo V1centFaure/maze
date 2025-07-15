@@ -5,18 +5,19 @@ This module provides a Maze class for creating and visualizing mazes with walls
 and optional value displays. It uses numpy for efficient array operations and
 pygame for rendering.
 """
-
+import config
 import numpy as np
 import pygame
 
-# Color constants
-BLACK = (0, 0, 0)
 
-# Display constants
-MARGE = 20  # Margin around the maze display in pixels
 
 class Maze:
-    def __init__(self, width, height, walls=None, cell_size=100):
+    def __init__(self, 
+                 width, 
+                 height, 
+                 walls=None, 
+                 cell_size=100, 
+                 start_position=(0, 0)):
         """
         Initialize a new Maze instance.
         
@@ -35,8 +36,9 @@ class Maze:
         self.height = height
         
         # Create the main grid (currently unused but kept for potential future use)
-        self.grid = np.zeros(shape=(self.height, self.width), dtype=int)
-        
+        self.grid = np.ones(shape=(self.height, self.width), dtype=int) * config.TIME_PENALTY
+        self.grid[self.height-1, self.width-1] = config.GOAL_REWARD
+
         # Store cell size for rendering
         self.cell_size = cell_size
         
@@ -53,6 +55,8 @@ class Maze:
             walls_horizontal[:, [0, -1]] = 1  # Top and bottom boundaries
             
             self.walls = [walls_vertical, walls_horizontal]
+
+        self.agent_pos = start_position
             
         # Validate wall dimensions
         if not (self.walls[0].shape[0] == self.grid.shape[0] and 
@@ -78,7 +82,7 @@ class Maze:
         window_width = self.width * self.cell_size 
         window_height = self.height * self.cell_size
         
-        window = pygame.display.set_mode((window_width + 2 * MARGE, window_height + 2 * MARGE))
+        window = pygame.display.set_mode((window_width + 2 * config.MARGE, window_height + 2 * config.MARGE))
         pygame.display.set_caption("Maze")
 
         # Main game loop
@@ -133,9 +137,9 @@ class Maze:
                     
                 # Draw the vertical line
                 pygame.draw.line(window, 
-                                BLACK, 
-                                (MARGE + w * self.cell_size, MARGE + h * self.cell_size), 
-                                (MARGE + w * self.cell_size, MARGE + (h + 1) * self.cell_size), 
+                                config.BLACK, 
+                                (config.MARGE + w * self.cell_size, config.MARGE + h * self.cell_size), 
+                                (config.MARGE + w * self.cell_size, config.MARGE + (h + 1) * self.cell_size), 
                                 width=line_width)
                                 
         # Draw horizontal lines (including walls)
@@ -149,9 +153,9 @@ class Maze:
                     
                 # Draw the horizontal line
                 pygame.draw.line(window, 
-                                BLACK, 
-                                (MARGE + w * self.cell_size, MARGE + h * self.cell_size), 
-                                (MARGE + (w + 1) * self.cell_size, MARGE + h * self.cell_size), 
+                                config.BLACK, 
+                                (config.MARGE + w * self.cell_size, config.MARGE + h * self.cell_size), 
+                                (config.MARGE + (w + 1) * self.cell_size, config.MARGE + h * self.cell_size), 
                                 width=line_width)
                 
         # Display values in cells if requested
@@ -170,11 +174,57 @@ class Maze:
                     text_size = font.size(str(q_values[h][w]))
                     
                     # Center the text in the cell
-                    text_x = MARGE + (w + 0.5) * self.cell_size - text_size[0] // 2
-                    text_y = MARGE + (h + 0.5) * self.cell_size - text_size[1] // 2
+                    text_x = config.MARGE + (w + 0.5) * self.cell_size - text_size[0] // 2
+                    text_y = config.MARGE + (h + 0.5) * self.cell_size - text_size[1] // 2
                     
                     window.blit(text, (text_x, text_y))
-                
+    def reset(self):
+        self.__init__(width = self.width,
+                      height = self.height,
+                      walls = self.walls,
+                      cell_size = self.cell_size)
+        
+    def step(self, action):
+        """ renvoie None, None, True si le mouvement n'est pas possible sinon renvoie next_state, reward, done
+        """
+        # 4 actions : haut, bas, gauche, droite
+        # (hauteur, largeur)
+        # walls[vertical, horizontal]
+
+        done = False
+        match action:
+            case 'up':
+                coord_verif = (self.agent_pos[0],self.agent_pos[1])
+                new_coord = (self.agent_pos[0]-1, self.agent_pos[1])
+
+            case 'down':
+                coord_verif =(self.agent_pos[0]+1,self.agent_pos[1])
+                new_coord = (self.agent_pos[0]+1, self.agent_pos[0])
+                                
+            case 'left':
+                coord_verif =(self.agent_pos[0],self.agent_pos[1])
+                new_coord = (self.agent_pos[0], self.agent_pos[1]-1)
+            case 'right':
+                coord_verif =(self.agent_pos[0],self.agent_pos[1]+1)
+                new_coord = (self.agent_pos[0]+1, self.agent_pos[1]+1)
+        
+        i = 1 if action in ['up', 'down'] else 0
+
+        if self.walls[i][coord_verif] == 1:
+            return None, None, done
+        else:
+            self.agent_pos = new_coord
+            next_state = self.agent_pos
+            if self.grid[self.agent_pos] == config.GOAL_REWARD:
+                reward = self.grid[self.agent_pos]
+                done = True
+            else:
+                reward = self.grid[self.agent_pos]
+        return next_state, reward, done
+
+
+
+
 if __name__ == '__main__':
     # Example usage and testing
     WIDTH = 8
@@ -203,10 +253,20 @@ if __name__ == '__main__':
     walls = [walls_vertical, walls_horizontal]
 
     # Create maze instance
-    maze = Maze(width=WIDTH, height=HEIGHT, walls=walls)
+    maze = Maze(width=WIDTH, 
+                height=HEIGHT, 
+                walls=walls, 
+                start_position=(0,0))
     
     # Create sample q_values for demonstration
     q_values = np.ones(shape=(HEIGHT, WIDTH))
 
     # Display the maze (without values, without grid)
     maze.draw(draw_value=False, q_values=q_values, grid=False)
+
+    
+    print(maze.grid)
+    print(maze.walls)
+    next_state, reward, done = maze.step(action='right')
+    print(next_state)
+    print(reward)
