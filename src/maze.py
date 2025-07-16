@@ -17,7 +17,8 @@ class Maze:
                  height, 
                  walls=None, 
                  cell_size=100, 
-                 start_position=(0, 0)):
+                 start_position=(0, 0),
+                 end_position = (1, 1)):
         """
         Initialize a new Maze instance.
         
@@ -31,19 +32,19 @@ class Maze:
         Raises:
             ValueError: If walls dimensions don't match the expected grid dimensions.
         """
-        # Store maze dimensions
+            # Store maze dimensions
         self.width = width
         self.height = height
-        
+        self.walls = walls
+        self.cell_size = cell_size
+        self.start_position = start_position
+        self.end_position = end_position
+
+
         # Create the main grid (currently unused but kept for potential future use)
         self.grid = np.ones(shape=(self.height, self.width), dtype=int) * config.TIME_PENALTY
         self.grid[self.height-1, self.width-1] = config.GOAL_REWARD
 
-        # Store cell size for rendering
-        self.cell_size = cell_size
-        
-        # Initialize walls
-        self.walls = walls
         if walls is None:
             # Create default walls (only boundary walls)
             # Note: HEIGHT and WIDTH are used from the main section - this may cause issues
@@ -56,7 +57,7 @@ class Maze:
             
             self.walls = [walls_vertical, walls_horizontal]
 
-        self.agent_pos = start_position
+        self.agent_pos = self.start_position
         self.step_numbers = 0
             
         # Validate wall dimensions
@@ -65,6 +66,7 @@ class Maze:
                 self.walls[1].shape[0] == self.grid.shape[0]+1 and 
                 self.walls[1].shape[1] == self.grid.shape[1]):
             raise ValueError(f"Wall matrix dimensions: expected [{self.grid.shape[0]}x{self.grid.shape[1]+1}, {self.grid.shape[0]+1}x{self.grid.shape[1]}], got [{self.walls[0].shape},{self.walls[1].shape}]")
+
 
     def draw(self, draw_value=False, q_values=None, grid=True):
         """
@@ -133,12 +135,13 @@ class Maze:
                 # Check if this is a wall (thick line) or regular grid line
                 if self.walls[0][h, w] == 1:
                     line_width = 10  # Thick line for walls
+                    color = config.WALL_COLOR
                 else:
                     line_width = default_line_width  # Thin or no line for grid
-                    
+                    color = config.LINE_COLOR
                 # Draw the vertical line
                 pygame.draw.line(window, 
-                                config.BLACK, 
+                                color, 
                                 (config.MARGE + w * self.cell_size, config.MARGE + h * self.cell_size), 
                                 (config.MARGE + w * self.cell_size, config.MARGE + (h + 1) * self.cell_size), 
                                 width=line_width)
@@ -149,12 +152,13 @@ class Maze:
                 # Check if this is a wall (thick line) or regular grid line
                 if self.walls[1][h, w] == 1:
                     line_width = 10  # Thick line for walls
+                    color = config.WALL_COLOR
                 else:
                     line_width = default_line_width  # Thin or no line for grid
-                    
+                    color = config.LINE_COLOR
                 # Draw the horizontal line
                 pygame.draw.line(window, 
-                                config.BLACK, 
+                                color, 
                                 (config.MARGE + w * self.cell_size, config.MARGE + h * self.cell_size), 
                                 (config.MARGE + (w + 1) * self.cell_size, config.MARGE + h * self.cell_size), 
                                 width=line_width)
@@ -226,11 +230,14 @@ class Maze:
 
 class Test_maze(Maze):
     def __init__(self):
-        width = 8
-        height = 5
+        self.width = 8
+        self.height = 5
+        self.cell_size = 100
+        self.start_position = (0, 0)
+        self.end_position = (4, 7)
         # Create wall arrays
-        walls_vertical = np.zeros(shape=(height, width+1))
-        walls_horizontal = np.zeros(shape=(height+1, width))
+        walls_vertical = np.zeros(shape=(self.height, self.width+1))
+        walls_horizontal = np.zeros(shape=(self.height+1, self.width))
         
         # Set boundary walls
         walls_vertical[:, [0, -1]] = 1  # Left and right boundaries
@@ -241,6 +248,7 @@ class Test_maze(Maze):
         walls_vertical[[2, 3], 5] = 1  # Vertical wall at column 5, rows 2-3
         walls_vertical[2, 2] = 1       # Vertical wall at column 2, row 2
         walls_vertical[[1, 2], 6] = 1  # Vertical wall at column 6, rows 1-2
+        walls_vertical[4, 3] = 1 
 
         # Add horizontal walls
         walls_horizontal[1, 2] = 1        # Horizontal wall at row 1, column 2
@@ -248,14 +256,15 @@ class Test_maze(Maze):
         walls_horizontal[1, 6] = 1        # Horizontal wall at row 1, column 6
 
         # Combine walls into the expected format
-        walls = [walls_vertical, walls_horizontal]
+        self.walls = [walls_vertical, walls_horizontal]
 
         # Create maze instance
-        super().__init__(width=width, 
-                        height=height, 
-                        walls=walls, 
-                        cell_size=100,
-                        start_position=(0,0))
+        super().__init__(width=self.width, 
+                        height=self.height, 
+                        walls=self.walls, 
+                        cell_size=self.cell_size,
+                        start_position=self.start_position,
+                        end_position=self.end_position)
         
     def reset(self):
         self.__init__()
@@ -264,6 +273,10 @@ class Test_maze_little(Maze):
     def __init__(self):
         self.width = 4
         self.height = 3
+        self.cell_size = 100
+        self.start_position = (0, 0)
+        self.end_position = (2, 3)
+
         # Create wall arrays
         walls_vertical = np.zeros(shape=(self.height, self.width+1))
         walls_horizontal = np.zeros(shape=(self.height+1, self.width))
@@ -280,71 +293,31 @@ class Test_maze_little(Maze):
 
         # Add horizontal walls
         walls_horizontal[1, 2] = 1    
-    
-        self.grid = np.ones(shape=(self.height, self.width), dtype=int) * config.TIME_PENALTY
-        self.grid[self.height-1, self.width-1] = config.GOAL_REWARD
-        # Store cell size for rendering
-        self.cell_size = 100
-        
+
         # Combine walls into the expected format
         self.walls = [walls_vertical, walls_horizontal]
         
-        self.agent_pos = (0, 0)
-        self.step_numbers = 0
-            
-        # Validate wall dimensions
-        if not (self.walls[0].shape[0] == self.grid.shape[0] and 
-                self.walls[0].shape[1] == self.grid.shape[1]+1 and
-                self.walls[1].shape[0] == self.grid.shape[0]+1 and 
-                self.walls[1].shape[1] == self.grid.shape[1]):
-            raise ValueError(f"Wall matrix dimensions: expected [{self.grid.shape[0]}x{self.grid.shape[1]+1}, {self.grid.shape[0]+1}x{self.grid.shape[1]}], got [{self.walls[0].shape},{self.walls[1].shape}]")
-
+                # Create maze instance
+        super().__init__(width=self.width, 
+                        height=self.height, 
+                        walls=self.walls, 
+                        cell_size=self.cell_size,
+                        start_position=self.start_position,
+                        end_position=self.end_position)
         
     def reset(self):
         self.__init__()
+            
 
 
 if __name__ == '__main__':
-    # Example usage and testing
-    WIDTH = 4
-    HEIGHT = 3
-    
-    # Create wall arrays
-    walls_vertical = np.zeros(shape=(HEIGHT, WIDTH+1))
-    walls_horizontal = np.zeros(shape=(HEIGHT+1, WIDTH))
-    
-    # Set boundary walls
-    walls_vertical[:, [0, -1]] = 1  # Left and right boundaries
-    walls_horizontal[[0, -1], :] = 1  # Top and bottom boundaries
-
-    # Add some internal walls for demonstration
-    walls_vertical[0, 1] = 1  
-    walls_vertical[1, 2] = 1  
-    walls_vertical[1, 3] = 1       
-
-
-    # Add horizontal walls
-    walls_horizontal[1, 3] = 1    
- 
-
-    # Combine walls into the expected format
-    walls = [walls_vertical, walls_horizontal]
-
-    # Create maze instance
-    maze = Maze(width=WIDTH, 
-                height=HEIGHT, 
-                walls=walls, 
-                start_position=(0,0))
+    env = Test_maze_little()
     
     # Create sample q_values for demonstration
-    q_values = np.ones(shape=(HEIGHT, WIDTH))
+    q_values = np.ones(shape=(env.height, env.width))
 
     # Display the maze (without values, without grid)
-    maze.draw(draw_value=False, q_values=q_values, grid=False)
+    env.draw(draw_value=False, q_values=q_values, grid=False)
 
     
-    print(maze.grid)
-    print(maze.walls)
-    next_state, reward, done = maze.step(action='right')
-    print(next_state)
-    print(reward)
+ 
