@@ -41,9 +41,9 @@ These dependencies are automatically installed with the package.
 ### Basic Example
 
 ```python
-from maze import Test_maze
-from agent_epsilon_greedy import Agent_epsilon_greedy
-import config
+# After pip installation, import like this:
+from maze import Test_maze, Agent_epsilon_greedy
+import maze.config as config
 
 # Create a test maze
 env = Test_maze()
@@ -78,8 +78,8 @@ env.draw()
 ### Example with Path Visualization
 
 ```python
-from maze import Test_maze_with_traps
-import config
+from maze import Test_maze_with_traps, Agent_epsilon_greedy
+import maze.config as config
 
 # Create a maze with traps
 env = Test_maze_with_traps()

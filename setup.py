@@ -82,7 +82,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "maze-demo=main:main",
+            "maze-demo=maze.main:main",
         ],
     },
     include_package_data=True,
