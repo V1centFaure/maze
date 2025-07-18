@@ -100,6 +100,7 @@ class Maze:
 
         self.agent_pos = self.start_position
         self.step_numbers = 0
+        self.total_reward = 0  # Track cumulative reward during episode
             
         # Validate wall dimensions
         if not (self.walls[0].shape[0] == self.grid.shape[0] and 
@@ -359,12 +360,13 @@ class Maze:
             self.agent_pos = new_coord
             next_state = self.agent_pos
             
+            # Calculate reward and update total
+            reward = self.grid[self.agent_pos]
+            self.total_reward += reward
+            
             # Check if goal is reached
             if self.grid[self.agent_pos] == config.GOAL_REWARD:
-                reward = self.grid[self.agent_pos]
                 done = True
-            else:
-                reward = self.grid[self.agent_pos]
                 
         return next_state, reward, done
 
